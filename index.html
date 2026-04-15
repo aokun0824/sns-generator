@@ -229,6 +229,11 @@
     }
 
     window.onload = () => {
+      if (location.search.includes('setup')) {
+        localStorage.removeItem('anthropic_api_key');
+        document.getElementById('apikey-screen').style.display = 'block';
+        return;
+      }
       const key = getApiKey();
       if (key) {
         document.getElementById('main-screen').style.display = 'block';
