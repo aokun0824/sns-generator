@@ -104,6 +104,27 @@
       background: none; border: none; color: #30363d;
       font-size: 12px; cursor: pointer; padding: 4px;
     }
+
+    /* シェアボタン */
+    .share-section {
+      background: #161b22; border: 1px solid #30363d;
+      border-radius: 14px; padding: 18px; margin-bottom: 12px;
+    }
+    .share-label {
+      font-size: 12px; font-weight: 700; color: #8b949e;
+      text-transform: uppercase; letter-spacing: 1px; margin-bottom: 14px;
+    }
+    .share-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .share-btn {
+      padding: 14px 8px; border: none; border-radius: 12px;
+      font-size: 14px; font-weight: 700; cursor: pointer;
+      transition: opacity 0.15s, transform 0.1s; -webkit-appearance: none;
+    }
+    .share-btn:active { transform: scale(0.97); opacity: 0.85; }
+    .x-btn { background: #000; color: #fff; }
+    .fb-btn { background: #1877f2; color: #fff; }
+    .ig-btn { background: linear-gradient(135deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888); color: #fff; }
+    .line-btn { background: #06c755; color: #fff; }
   </style>
 </head>
 <body>
@@ -195,6 +216,16 @@
             <button class="copy-btn" id="copy-line" onclick="copySection('line-text','copy-line')">コピー</button>
           </div>
           <div class="result-text" id="line-text"></div>
+        </div>
+
+        <div class="share-section">
+          <div class="share-label">📤 このままシェアする</div>
+          <div class="share-buttons">
+            <button class="share-btn x-btn" onclick="shareX()">𝕏 Xに投稿</button>
+            <button class="share-btn fb-btn" onclick="shareFacebook()">📘 Facebookにシェア</button>
+            <button class="share-btn ig-btn" onclick="shareInstagram()">📸 Instagramにコピー</button>
+            <button class="share-btn line-btn" onclick="shareLINE()">💚 LINEでシェア</button>
+          </div>
         </div>
 
         <button class="reset-btn" onclick="reset()">もう一度作る</button>
@@ -339,6 +370,34 @@ ${accountLine}
       const s = si + start.length;
       const ei = end ? text.indexOf(end) : text.length;
       return text.slice(s, ei === -1 ? text.length : ei).trim();
+    }
+
+    function shareX() {
+      const text = document.getElementById('twitter-text').textContent;
+      window.open('https://twitter.com/intent/tweet?text=' + encodeURIComponent(text), '_blank');
+    }
+
+    function shareFacebook() {
+      const text = document.getElementById('instagram-text').textContent;
+      window.open('https://www.facebook.com/sharer/sharer.php?quote=' + encodeURIComponent(text), '_blank');
+    }
+
+    function shareInstagram() {
+      const text = document.getElementById('instagram-text').textContent + '\n\n' + document.getElementById('hashtag-text').textContent;
+      navigator.clipboard.writeText(text).catch(() => {
+        const el = document.createElement('textarea');
+        el.value = text;
+        document.body.appendChild(el);
+        el.select();
+        document.execCommand('copy');
+        document.body.removeChild(el);
+      });
+      alert('Instagram投稿文＋ハッシュタグをコピーしました！\nInstagramアプリを開いて貼り付けてください。');
+    }
+
+    function shareLINE() {
+      const text = document.getElementById('line-text').textContent;
+      window.open('https://social-plugins.line.me/lineit/share?url=' + encodeURIComponent(location.href) + '&text=' + encodeURIComponent(text), '_blank');
     }
 
     function copySection(textId, btnId) {
