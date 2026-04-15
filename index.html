@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>SNS投稿ジェネレーター</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    body {
+      background: #0d1117;
+      color: #e6edf3;
+      font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', sans-serif;
+      min-height: 100vh;
+      padding: 24px 16px 48px;
+    }
+    .container { width: 100%; max-width: 560px; margin: 0 auto; }
+
+    /* ヘッダー */
+    .header { text-align: center; margin-bottom: 32px; padding-top: 16px; }
+    .header .emoji { font-size: 52px; display: block; margin-bottom: 10px; cursor: pointer; user-select: none; }
+    .header h1 { font-size: 22px; font-weight: 700; color: #fff; margin-bottom: 6px; }
+    .header p { font-size: 13px; color: #8b949e; }
+
+    /* カード */
+    .card { background: #161b22; border: 1px solid #30363d; border-radius: 16px; padding: 24px; margin-bottom: 16px; }
+
+    /* フォーム */
+    .field { margin-bottom: 18px; }
+    .field:last-child { margin-bottom: 0; }
+    label {
+      display: block; font-size: 12px; font-weight: 600; color: #8b949e;
+      margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .optional { color: #484f58; font-weight: 400; text-transform: none; letter-spacing: 0; font-size: 12px; }
+    input, textarea {
+      width: 100%; background: #0d1117; border: 1px solid #30363d; border-radius: 10px;
+      padding: 14px 16px; color: #e6edf3; font-size: 16px; font-family: inherit;
+      transition: border-color 0.2s; outline: none; -webkit-appearance: none;
+    }
+    input:focus, textarea:focus { border-color: #58a6ff; }
+    input::placeholder, textarea::placeholder { color: #484f58; }
+    textarea { resize: none; height: 88px; }
+
+    /* ボタン */
+    .btn {
+      width: 100%; padding: 18px;
+      background: linear-gradient(135deg, #6e40c9, #58a6ff);
+      color: #fff; font-size: 17px; font-weight: 700;
+      border: none; border-radius: 14px; cursor: pointer;
+      transition: opacity 0.15s, transform 0.1s;
+      -webkit-appearance: none;
+    }
+    .btn:active { transform: scale(0.97); opacity: 0.9; }
+    .btn:disabled { opacity: 0.5; }
+
+    /* ローディング */
+    .loading { text-align: center; padding: 48px 24px; display: none; }
+    .spinner {
+      width: 44px; height: 44px; border: 3px solid #30363d;
+      border-top-color: #58a6ff; border-radius: 50%;
+      animation: spin 0.8s linear infinite; margin: 0 auto 16px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* 結果 */
+    .result { display: none; }
+    .back-btn {
+      display: flex; align-items: center; gap: 6px;
+      background: transparent; border: none; color: #58a6ff;
+      font-size: 15px; cursor: pointer; padding: 4px 0;
+      margin-bottom: 20px;
+    }
+    .result-section {
+      background: #161b22; border: 1px solid #30363d;
+      border-radius: 14px; padding: 18px; margin-bottom: 12px;
+    }
+    .result-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .result-label { font-size: 12px; font-weight: 700; color: #58a6ff; text-transform: uppercase; letter-spacing: 1px; }
+    .result-label.line { color: #3fb950; }
+    .result-text { font-size: 15px; line-height: 1.75; color: #e6edf3; white-space: pre-wrap; }
+    .copy-btn {
+      background: #21262d; border: 1px solid #30363d;
+      color: #8b949e; font-size: 13px; padding: 6px 14px;
+      border-radius: 8px; cursor: pointer; white-space: nowrap;
+      transition: all 0.2s; -webkit-appearance: none;
+    }
+    .copy-btn:active { background: #30363d; }
+    .copy-btn.copied { color: #3fb950; border-color: #3fb950; }
+    .reset-btn {
+      width: 100%; padding: 16px; background: transparent;
+      border: 1px solid #30363d; color: #8b949e; font-size: 15px;
+      border-radius: 14px; cursor: pointer; margin-top: 4px;
+      -webkit-appearance: none;
+    }
+    .reset-btn:active { background: #21262d; }
+
+    /* APIキー設定画面 */
+    #apikey-screen { display: none; padding-top: 60px; }
+    .apikey-note { font-size: 13px; color: #8b949e; margin-top: 14px; line-height: 1.7; }
+
+    /* 隠し設定ボタン */
+    #secret-settings { display: none; text-align: right; margin-top: 12px; }
+    #secret-settings button {
+      background: none; border: none; color: #30363d;
+      font-size: 12px; cursor: pointer; padding: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <!-- APIキー設定画面 -->
+    <div id="apikey-screen">
+      <div class="header">
+        <span class="emoji">🔑</span>
+        <h1>初回設定</h1>
+        <p>Anthropic APIキーを入力してください</p>
+      </div>
+      <div class="card">
+        <div class="field">
+          <label>APIキー</label>
+          <input type="password" id="apikey-input" placeholder="sk-ant-api03-...">
+        </div>
+        <button class="btn" onclick="saveApiKey()">設定して始める</button>
+        <p class="apikey-note">※ キーはこのブラウザにのみ保存されます。</p>
+      </div>
+    </div>
+
+    <!-- メイン画面 -->
+    <div id="main-screen" style="display:none;">
+      <div class="header">
+        <span class="emoji" id="logo" onclick="logoTap()">✨</span>
+        <h1>SNS投稿ジェネレーター</h1>
+        <p>情報を入れるだけでAIが投稿文を作ります</p>
+      </div>
+
+      <div class="card" id="form-card">
+        <div class="field">
+          <label>お店・作家名</label>
+          <input type="text" id="shop_name" placeholder="例：ハンドメイドショップ Hana" autocomplete="off">
+        </div>
+        <div class="field">
+          <label>商品・サービス</label>
+          <input type="text" id="product" placeholder="例：天然石を使ったアクセサリー" autocomplete="off">
+        </div>
+        <div class="field">
+          <label>一番伝えたいこと</label>
+          <textarea id="message" placeholder="例：一点もので、世界に一つだけのデザインです"></textarea>
+        </div>
+        <div class="field">
+          <label>Instagramアカウント <span class="optional">（任意）</span></label>
+          <input type="text" id="instagram_account" placeholder="例：@hana_handmade" autocomplete="off">
+        </div>
+        <button class="btn" onclick="generate()">投稿文を作る ▶</button>
+        <div id="secret-settings">
+          <button onclick="clearApiKey()">⚙ APIキーを変更</button>
+        </div>
+      </div>
+
+      <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <p style="color:#8b949e;font-size:14px;">AIが考えています...</p>
+      </div>
+
+      <div class="result" id="result">
+        <button class="back-btn" onclick="reset()">← 入力に戻る</button>
+
+        <div class="result-section">
+          <div class="result-header">
+            <div class="result-label">📸 Instagram投稿文</div>
+            <button class="copy-btn" id="copy-instagram" onclick="copySection('instagram-text','copy-instagram')">コピー</button>
+          </div>
+          <div class="result-text" id="instagram-text"></div>
+        </div>
+
+        <div class="result-section">
+          <div class="result-header">
+            <div class="result-label"># ハッシュタグ（Instagram用）</div>
+            <button class="copy-btn" id="copy-hashtag" onclick="copySection('hashtag-text','copy-hashtag')">コピー</button>
+          </div>
+          <div class="result-text" id="hashtag-text"></div>
+        </div>
+
+        <div class="result-section">
+          <div class="result-header">
+            <div class="result-label">𝕏 X用</div>
+            <button class="copy-btn" id="copy-twitter" onclick="copySection('twitter-text','copy-twitter')">コピー</button>
+          </div>
+          <div class="result-text" id="twitter-text"></div>
+        </div>
+
+        <div class="result-section">
+          <div class="result-header">
+            <div class="result-label line">💚 公式LINE用</div>
+            <button class="copy-btn" id="copy-line" onclick="copySection('line-text','copy-line')">コピー</button>
+          </div>
+          <div class="result-text" id="line-text"></div>
+        </div>
+
+        <button class="reset-btn" onclick="reset()">もう一度作る</button>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // ↓ここにAPIキーを貼り付けてください（イベント後は削除）
+    const EMBEDDED_API_KEY = '';
+
+    // ロゴを5回タップで隠しメニュー表示
+    let tapCount = 0;
+    let tapTimer = null;
+    function logoTap() {
+      tapCount++;
+      clearTimeout(tapTimer);
+      tapTimer = setTimeout(() => { tapCount = 0; }, 2000);
+      if (tapCount >= 5) {
+        tapCount = 0;
+        document.getElementById('secret-settings').style.display =
+          document.getElementById('secret-settings').style.display === 'none' ? 'block' : 'none';
+      }
+    }
+
+    function getApiKey() {
+      if (EMBEDDED_API_KEY && EMBEDDED_API_KEY.startsWith('sk-ant-')) {
+        return EMBEDDED_API_KEY;
+      }
+      return localStorage.getItem('anthropic_api_key');
+    }
+
+    window.onload = () => {
+      const key = getApiKey();
+      if (key) {
+        document.getElementById('main-screen').style.display = 'block';
+      } else {
+        document.getElementById('apikey-screen').style.display = 'block';
+      }
+    };
+
+    function saveApiKey() {
+      const key = document.getElementById('apikey-input').value.trim();
+      if (!key.startsWith('sk-ant-')) {
+        alert('正しいAPIキーを入力してください');
+        return;
+      }
+      localStorage.setItem('anthropic_api_key', key);
+      document.getElementById('apikey-screen').style.display = 'none';
+      document.getElementById('main-screen').style.display = 'block';
+    }
+
+    function clearApiKey() {
+      if (confirm('APIキーをリセットしますか？')) {
+        localStorage.removeItem('anthropic_api_key');
+        location.reload();
+      }
+    }
+
+    async function generate() {
+      const shopName = document.getElementById('shop_name').value.trim();
+      const product = document.getElementById('product').value.trim();
+      const message = document.getElementById('message').value.trim();
+      const account = document.getElementById('instagram_account').value.trim();
+
+      if (!shopName || !product) {
+        alert('お店名と商品・サービスを入力してください');
+        return;
+      }
+
+      document.getElementById('form-card').style.display = 'none';
+      document.getElementById('loading').style.display = 'block';
+      document.getElementById('result').style.display = 'none';
+      window.scrollTo(0, 0);
+
+      const accountLine = account ? `Instagramアカウント: ${account}（投稿文の末尾に自然に入れてください）` : '';
+
+      const prompt = `以下の情報をもとに投稿文を作成してください。
+
+お店・作家名: ${shopName}
+商品・サービス: ${product}
+伝えたいこと: ${message}
+${accountLine}
+
+以下の形式で出力してください：
+
+【Instagram投稿文】
+（絵文字を使った魅力的な投稿文を200〜300文字で。ハッシュタグは含めない）
+
+【Instagramハッシュタグ】
+（日本語・英語合わせて15〜20個。改行なしでスペース区切り）
+
+【X用】
+（140文字以内。ハッシュタグを2〜3個文章内に含める）
+
+【公式LINE用】
+（親しみやすい文体で150〜200文字。ハッシュタグ不要。末尾に次のアクションを促す一言を入れる）`;
+
+      try {
+        const res = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': getApiKey(),
+            'anthropic-version': '2023-06-01',
+            'anthropic-dangerous-direct-browser-access': 'true'
+          },
+          body: JSON.stringify({
+            model: 'claude-haiku-4-5-20251001',
+            max_tokens: 1200,
+            messages: [{ role: 'user', content: prompt }]
+          })
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error.message);
+        parseAndDisplay(data.content[0].text);
+      } catch (e) {
+        alert('エラーが発生しました。もう一度お試しください。');
+        reset();
+      }
+    }
+
+    function parseAndDisplay(text) {
+      document.getElementById('instagram-text').textContent = extract(text, '【Instagram投稿文】', '【Instagramハッシュタグ】');
+      document.getElementById('hashtag-text').textContent = extract(text, '【Instagramハッシュタグ】', '【X用】');
+      document.getElementById('twitter-text').textContent = extract(text, '【X用】', '【公式LINE用】');
+      document.getElementById('line-text').textContent = extract(text, '【公式LINE用】', null);
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('result').style.display = 'block';
+      window.scrollTo(0, 0);
+    }
+
+    function extract(text, start, end) {
+      const si = text.indexOf(start);
+      if (si === -1) return '';
+      const s = si + start.length;
+      const ei = end ? text.indexOf(end) : text.length;
+      return text.slice(s, ei === -1 ? text.length : ei).trim();
+    }
+
+    function copySection(textId, btnId) {
+      const text = document.getElementById(textId).textContent;
+      navigator.clipboard.writeText(text).catch(() => {
+        // fallback for older iOS
+        const el = document.createElement('textarea');
+        el.value = text;
+        document.body.appendChild(el);
+        el.select();
+        document.execCommand('copy');
+        document.body.removeChild(el);
+      });
+      const btn = document.getElementById(btnId);
+      btn.textContent = '✓ コピー済み';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = 'コピー'; btn.classList.remove('copied'); }, 2000);
+    }
+
+    function reset() {
+      document.getElementById('form-card').style.display = 'block';
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('result').style.display = 'none';
+      document.getElementById('secret-settings').style.display = 'none';
+      window.scrollTo(0, 0);
+    }
+  </script>
+</body>
+</html>
