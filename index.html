@@ -130,25 +130,8 @@
 <body>
   <div class="container">
 
-    <!-- APIキー設定画面 -->
-    <div id="apikey-screen">
-      <div class="header">
-        <span class="emoji">🔑</span>
-        <h1>初回設定</h1>
-        <p>Anthropic APIキーを入力してください</p>
-      </div>
-      <div class="card">
-        <div class="field">
-          <label>APIキー</label>
-          <input type="password" id="apikey-input" placeholder="sk-ant-api03-...">
-        </div>
-        <button class="btn" onclick="saveApiKey()">設定して始める</button>
-        <p class="apikey-note">※ キーはこのブラウザにのみ保存されます。</p>
-      </div>
-    </div>
-
     <!-- メイン画面 -->
-    <div id="main-screen" style="display:none;">
+    <div id="main-screen">
       <div class="header">
         <span class="emoji" id="logo" onclick="logoTap()">✨</span>
         <h1>SNS投稿ジェネレーター</h1>
@@ -172,10 +155,14 @@
           <label>Instagramアカウント <span class="optional">（任意）</span></label>
           <input type="text" id="instagram_account" placeholder="例：@hana_handmade" autocomplete="off">
         </div>
-        <button class="btn" onclick="generate()">投稿文を作る ▶</button>
-        <div id="secret-settings">
-          <button onclick="clearApiKey()">⚙ APIキーを変更</button>
+        <div id="custom-key-section" style="display:none;">
+          <div class="field">
+            <label>Anthropic API Key <span class="optional">（任意・自分のキーを使う場合）</span></label>
+            <input type="password" id="custom_api_key" placeholder="sk-ant-api03-..." autocomplete="off">
+            <p class="apikey-note">※ 未入力の場合はデフォルトのAIを使用します。自分のキーを入力するとそちらが優先されます。</p>
+          </div>
         </div>
+        <button class="btn" onclick="generate()">投稿文を作る ▶</button>
       </div>
 
       <div class="loading" id="loading">
@@ -235,10 +222,10 @@
   </div>
 
   <script>
-    // ↓ここにAPIキーを貼り付けてください（イベント後は削除）
+    // デフォルトAPIキー（Netlify版のみ設定）
     const EMBEDDED_API_KEY = '';
 
-    // ロゴを5回タップで隠しメニュー表示
+    // ロゴを5回タップでカスタムキー入力欄を表示
     let tapCount = 0;
     let tapTimer = null;
     function logoTap() {
@@ -247,49 +234,23 @@
       tapTimer = setTimeout(() => { tapCount = 0; }, 2000);
       if (tapCount >= 5) {
         tapCount = 0;
-        document.getElementById('secret-settings').style.display =
-          document.getElementById('secret-settings').style.display === 'none' ? 'block' : 'none';
+        const s = document.getElementById('custom-key-section');
+        s.style.display = s.style.display === 'none' ? 'block' : 'none';
       }
     }
 
     function getApiKey() {
+      const custom = document.getElementById('custom_api_key');
+      if (custom && custom.value.trim().startsWith('sk-ant-')) {
+        return custom.value.trim();
+      }
       if (EMBEDDED_API_KEY && EMBEDDED_API_KEY.startsWith('sk-ant-')) {
         return EMBEDDED_API_KEY;
       }
-      return localStorage.getItem('anthropic_api_key');
+      return null;
     }
 
-    window.onload = () => {
-      if (location.search.includes('setup')) {
-        localStorage.removeItem('anthropic_api_key');
-        document.getElementById('apikey-screen').style.display = 'block';
-        return;
-      }
-      const key = getApiKey();
-      if (key) {
-        document.getElementById('main-screen').style.display = 'block';
-      } else {
-        document.getElementById('apikey-screen').style.display = 'block';
-      }
-    };
-
-    function saveApiKey() {
-      const key = document.getElementById('apikey-input').value.trim();
-      if (!key.startsWith('sk-ant-')) {
-        alert('正しいAPIキーを入力してください');
-        return;
-      }
-      localStorage.setItem('anthropic_api_key', key);
-      document.getElementById('apikey-screen').style.display = 'none';
-      document.getElementById('main-screen').style.display = 'block';
-    }
-
-    function clearApiKey() {
-      if (confirm('APIキーをリセットしますか？')) {
-        localStorage.removeItem('anthropic_api_key');
-        location.reload();
-      }
-    }
+    window.onload = () => {};
 
     async function generate() {
       const shopName = document.getElementById('shop_name').value.trim();
@@ -299,6 +260,12 @@
 
       if (!shopName || !product) {
         alert('お店名と商品・サービスを入力してください');
+        return;
+      }
+
+      const apiKey = getApiKey();
+      if (!apiKey) {
+        alert('APIキーが設定されていません。ロゴを5回タップして入力してください。');
         return;
       }
 
@@ -335,7 +302,7 @@ ${accountLine}
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'x-api-key': getApiKey(),
+            'x-api-key': apiKey,
             'anthropic-version': '2023-06-01',
             'anthropic-dangerous-direct-browser-access': 'true'
           },
